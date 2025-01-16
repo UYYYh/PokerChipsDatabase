@@ -151,6 +151,54 @@ def revert_tournament(tournament_id: str):
     query = "DELETE FROM tournament WHERE tournament_id = :tournament_id"
     execute_sql(query, params)
 
+# gets the leaderboard, and for each player, get their number of tournament 1st place finishes, and total cash game winnings:
+def get_stats_string():
+    query = """
+SELECT 
+    p.name,
+    p.chips,
+    COALESCE(tp.first_place_count, 0)            AS first_place_finishes,
+    COALESCE(cg.total_cash_winnings, 0)         AS total_cash_winnings,
+    COALESCE(tt.total_tournament_winnings, 0)   AS total_tournament_winnings
+FROM player p
+
+-- Subquery #1: Count of 1st place finishes
+LEFT JOIN (
+    SELECT 
+        name,
+        COUNT(*) AS first_place_count
+    FROM tournament_player
+    WHERE placement = 1
+    GROUP BY name
+) AS tp ON p.name = tp.name
+
+-- Subquery #2: Sum of cash game winnings
+LEFT JOIN (
+    SELECT 
+        name,
+        SUM(change_in_chips) AS total_cash_winnings
+    FROM cash_game_player
+    GROUP BY name
+) AS cg ON p.name = cg.name
+
+-- Subquery #3: Sum of tournament winnings
+LEFT JOIN (
+    SELECT 
+        name,
+        SUM(change_in_chips) AS total_tournament_winnings
+    FROM tournament_player
+    GROUP BY name
+) AS tt ON p.name = tt.name
+
+ORDER BY p.chips DESC;
+    """
+    result = execute_sql(query, {}, fetch=True)
+    results_string = "   name   | chips | 1st place finishes | total tournament winnings | total cash game winnings"
+    for row in result.fetchall():
+        results_string += f"\n{row[0].rjust(9)} | {str(row[1]).rjust(5)} | {str(row[2]).center(18)} | {str(row[4]).center(25)} | {str(row[3]).rjust(12)}"
+    return results_string
+    
+
 def get_leaderboard():
     query = """
     SELECT name, chips FROM player

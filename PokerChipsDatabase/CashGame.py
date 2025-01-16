@@ -16,6 +16,20 @@ class CashGame(object):
         else:
             self.date = date
     
+    # results_string format:
+    # (player name) (change in chips)
+    @classmethod
+    def from_delta(cls, results_string : str) -> 'CashGame':
+        results_string = Utils.clean_results_string(results_string)
+        players = cls._get_players_from_delta(results_string)
+        return cls(0, None, players)
+    
+    def _get_players_from_delta(results_string : str) -> [CashGamePlayer]:
+        players = []
+        for line in results_string.split('\n'):
+            name, change = line.split(' ')
+            players.append(CashGamePlayer(name = name, cashed_out_amount = int(change)))
+        return players
 
     # results_string format:
     # buy-in
