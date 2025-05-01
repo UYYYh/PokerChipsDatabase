@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, text
+﻿from sqlalchemy import create_engine, text
 from contextlib import contextmanager
 from CashGame import CashGame
 from Player import Player
@@ -151,53 +151,85 @@ def revert_tournament(tournament_id: str):
     query = "DELETE FROM tournament WHERE tournament_id = :tournament_id"
     execute_sql(query, params)
 
-# gets the leaderboard, and for each player, get their number of tournament 1st place finishes, and total cash game winnings:
-def get_stats_string():
+def get_stats_string(since_date: str, only_active: bool = False):
+    # build the main SELECT + JOINs
     query = """
-SELECT 
-    p.name,
-    p.chips,
-    COALESCE(tp.first_place_count, 0)            AS first_place_finishes,
-    COALESCE(cg.total_cash_winnings, 0)         AS total_cash_winnings,
-    COALESCE(tt.total_tournament_winnings, 0)   AS total_tournament_winnings
-FROM player p
-
--- Subquery #1: Count of 1st place finishes
-LEFT JOIN (
     SELECT 
-        name,
-        COUNT(*) AS first_place_count
-    FROM tournament_player
-    WHERE placement = 1
-    GROUP BY name
-) AS tp ON p.name = tp.name
+        p.name,
+        p.chips,
+        COALESCE(tp.first_place_count, 0)         AS first_place_finishes,
+        COALESCE(cg.total_cash_winnings, 0)       AS total_cash_winnings,
+        COALESCE(tt.total_tournament_winnings, 0) AS total_tournament_winnings
+    FROM player p
 
--- Subquery #2: Sum of cash game winnings
-LEFT JOIN (
-    SELECT 
-        name,
-        SUM(change_in_chips) AS total_cash_winnings
-    FROM cash_game_player
-    GROUP BY name
-) AS cg ON p.name = cg.name
+    -- 1st-place finishes after since_date
+    LEFT JOIN (
+        SELECT 
+            tp.name,
+            COUNT(*) AS first_place_count
+        FROM tournament_player AS tp
+        JOIN tournament AS t
+          ON tp.tournament_id = t.tournament_id
+        WHERE tp.placement = 1
+          AND t.date > :since_date
+        GROUP BY tp.name
+    ) AS tp 
+      ON p.name = tp.name
 
--- Subquery #3: Sum of tournament winnings
-LEFT JOIN (
-    SELECT 
-        name,
-        SUM(change_in_chips) AS total_tournament_winnings
-    FROM tournament_player
-    GROUP BY name
-) AS tt ON p.name = tt.name
+    -- cash-game winnings after since_date
+    LEFT JOIN (
+        SELECT 
+            cgp.name,
+            SUM(cgp.change_in_chips) AS total_cash_winnings
+        FROM cash_game_player AS cgp
+        JOIN cash_game AS cg
+          ON cgp.cash_game_id = cg.cash_game_id
+        WHERE cg.date > :since_date
+        GROUP BY cgp.name
+    ) AS cg 
+      ON p.name = cg.name
 
-ORDER BY p.chips DESC;
+    -- tournament winnings after since_date
+    LEFT JOIN (
+        SELECT 
+            tp2.name,
+            SUM(tp2.change_in_chips) AS total_tournament_winnings
+        FROM tournament_player AS tp2
+        JOIN tournament AS t
+          ON tp2.tournament_id = t.tournament_id
+        WHERE t.date > :since_date
+        GROUP BY tp2.name
+    ) AS tt 
+      ON p.name = tt.name
     """
-    result = execute_sql(query, {}, fetch=True)
-    results_string = "   name   | chips | 1st place finishes | total tournament winnings | total cash game winnings"
-    for row in result.fetchall():
-        results_string += f"\n{row[0].rjust(9)} | {str(row[1]).rjust(5)} | {str(row[2]).center(18)} | {str(row[4]).center(25)} | {str(row[3]).rjust(12)}"
-    return results_string
-    
+
+    # if only_active, keep players who appear in at least one sub-query
+    if only_active:
+        query += """
+    WHERE 
+        tp.name IS NOT NULL 
+     OR cg.name IS NOT NULL 
+     OR tt.name IS NOT NULL
+        """
+
+    query += "\nORDER BY p.chips DESC;"
+
+    # execute
+    result = execute_sql(query, {"since_date": since_date}, fetch=True)
+
+    # format output
+    header = (
+        "   name   | chips  | 1st place finishes | "
+        "total tournament winnings | total cash game winnings"
+    )
+    lines = [header]
+    for name, chips, firsts, cash_wins, tourney_wins in result.fetchall():
+        lines.append(
+            f"{name.rjust(9)} | {str(chips).rjust(6)} | "
+            f"{str(firsts).center(18)} | {str(tourney_wins).center(25)} | "
+            f"{str(cash_wins).rjust(12)}"
+        )
+    return "\n".join(lines)    
 
 def get_leaderboard():
     query = """
@@ -206,5 +238,9 @@ def get_leaderboard():
     """
     result = execute_sql(query, {}, fetch=True)
     return result.fetchall()
+
+def reset_all_to_20000():
+    query = "UPDATE player SET chips = 20000"
+    execute_sql(query, {}, fetch=False)
 
 

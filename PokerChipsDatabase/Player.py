@@ -1,6 +1,8 @@
+from Utils import capitalise_first_letter
+
 class Player(object):
     def __init__(self, name, chips = 20000):
-        self.name = name
+        self.name = capitalise_first_letter(name)
         self.chips = chips
 
     def __str__(self):

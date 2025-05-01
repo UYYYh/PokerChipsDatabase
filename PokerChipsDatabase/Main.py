@@ -1,8 +1,11 @@
+from email import utils
+from string import printable
 from Player import Player
 from Tournament import Tournament
 from TournamentPlayer import TournamentPlayer
 from CashGame import CashGame
-from DatabaseService import get_leaderboard, record_cash_game, record_tournament, revert_cash_game, revert_tournament, test_connection, get_stats_string
+from DatabaseService import get_leaderboard, record_cash_game, record_tournament, reset_all_to_20000, revert_cash_game, revert_tournament, test_connection, get_stats_string
+from Utils import get_todays_date
         
 
 def test_parse_tournament():
@@ -42,28 +45,50 @@ Henry cashes out for 300"""
 def main():
     results = """200
 today
-{ 1: 0.7, 2: 0.3 }
-Joy rebuy
-Joy busted by Margaret
-Leo busted by Margaret
-Duncan busted by Henry
-Margaret busted by Henry
-Henry busted by Kevin
-Kevin busted by Nobody
-"""
+default payouts
+Ryann rebuys 
+Sienna busted by Kevin
+Joy busted by Henry
+Elsa busted by Zachary
+Ryann busted by Andrew
+Dima busted by Henry
+Kevin busted by Henry
+Raj busted by Henry
+Zachary busted by Henry
+Andrew busted by Henry
+Henry busted by Nobody"""
     tourney = Tournament.from_results_string(results)
     print(tourney)
-    record_tournament(tourney)
+    prompt = input("Would you like to proceed? (y/n): ")
+    if prompt == 'y':
+        record_tournament(tourney)
 
 def main2():
-    results = """Joy +99
-Henry +65
-Kevin 0
-Vlad -164"""
-    cash_game = CashGame.from_delta(results)
+    results = """4000
+today
+Leo rebuys
+Leo rebuys
+Zachary rebuys
+Kaka rebuys 
+Zachary cashes out for 0
+Murad cashes out for 0
+Leo cashes out for 0
+Kevin cashes out for 4710
+Kaka cashes out for 5820
+Joy cashes out for 17760
+Sayuri cashes out for 3420
+Lily cashes out for 1920
+Andrew cashes out for 15430
+Issac cashes out for 6940"""
+    cash_game = CashGame.from_results_string(results)
     print(cash_game)
-    record_cash_game(cash_game)
     
-print(get_stats_string())
+    prompt = input("Would you like to proceed? (y/n): ")
+
+    if prompt == 'y':
+        record_cash_game(cash_game)
+
+
+print(get_stats_string("2025-04-30", True))
 
 

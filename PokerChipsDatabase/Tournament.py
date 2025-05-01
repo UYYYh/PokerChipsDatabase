@@ -62,9 +62,9 @@ class Tournament(object):
         return placements
     
     def _set_rebuys(results_string : str, players : [TournamentPlayer]) -> [TournamentPlayer]:
-        rebuys = list(filter(lambda line: 'rebuy' in line, results_string.split('\n')))
+        rebuys = list(filter(lambda line: 'rebuys' in line, results_string.split('\n')))
         for rebuy in rebuys:
-            name = rebuy.split(' ')[0]
+            name = Utils.capitalise_first_letter(rebuy.split(' ')[0])
             player = next(filter(lambda player: player.name == name, players))
             player.buy_ins += 1
         return players
@@ -96,6 +96,8 @@ class Tournament(object):
             output += f"\n{str(player.placement).center(9)} | {player.name.center(9)} | {str(player.buy_ins).center(7)} | {player.busted_by.name.center(9)} | {str(change).center(14)}"
            
         return output
+
+
     
     
     

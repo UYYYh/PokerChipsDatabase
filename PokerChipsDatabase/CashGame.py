@@ -61,7 +61,7 @@ class CashGame(object):
     def _set_rebuys(results_string : str, players : [CashGamePlayer]) -> None:
         rebuys = list(filter(lambda line: 'rebuys' in line, results_string.split('\n')))
         for rebuy in rebuys:
-            name = rebuy.split(' rebuys')[0]
+            name = Utils.capitalise_first_letter(rebuy.split(' rebuys')[0])
             player = next(filter(lambda player: player.name == name, players))
             player.buy_ins += 1
     
@@ -79,9 +79,11 @@ class CashGame(object):
         return change 
     
     def __str__(self):
+        total_change = sum(self.calculate_change().values())
         output = "   Name   | Buy-ins | Change in Chips"
         for (player, change) in self.calculate_change().items():
             output += f"\n{player.name.center(9)} | {str(player.buy_ins).center(7)} | {str(change).center(14)}"
+        output += f"\nTotal change: {total_change}"
         return output
         
 
